@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Dash — Maths Adventure</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Nunito', sans-serif;
+  background: #0d062a;
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 10px 12px 16px;
+}
+
+.topbar {
+  width: 100%; max-width: 960px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.gametitle {
+  font-family: 'Fredoka One', cursive;
+  font-size: 26px; color: #fff;
+  text-shadow: 0 0 18px rgba(160,140,255,0.7); letter-spacing: 1px;
+}
+.gametitle span { color: #FFD700; }
+.hud { display: flex; gap: 8px; align-items: center; }
+.hudpill {
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 99px; padding: 4px 12px;
+  font-weight: 800; font-size: 13px; color: #fff;
+  display: flex; gap: 5px; align-items: center;
+}
+.hudpill .lbl { color: rgba(255,255,255,0.45); font-size: 11px; font-weight: 700; }
+#musicbtn {
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 99px; padding: 4px 12px;
+  color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; transition: background 0.2s;
+}
+#musicbtn:hover { background: rgba(255,255,255,0.14); }
+
+/* TWO LIFE BARS */
+.lives-row {
+  width: 100%; max-width: 960px;
+  display: flex; gap: 12px; margin-bottom: 8px;
+}
+.life-bar {
+  flex: 1; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px; padding: 6px 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.life-bar-label { font-size: 11px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; }
+.life-bar.jump  .life-bar-label { color: #FF8A80; }
+.life-bar.quest .life-bar-label { color: #80D8FF; }
+.life-icons { display: flex; gap: 4px; }
+.life-icon { font-size: 18px; transition: all 0.3s; }
+.life-icon.lost { filter: grayscale(1); opacity: 0.2; }
+
+/* PROGRESS */
+.progrow {
+  width: 100%; max-width: 960px;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.proglbl { font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.35); white-space: nowrap; }
+.progtrack { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+.progfill  { height: 100%; background: linear-gradient(90deg,#7C6FE0,#FFD700); border-radius: 99px; transition: width 0.5s; }
+
+/* GAME — 16:7 aspect ratio */
+.gamewrap {
+  width: 100%; max-width: 960px;
+  aspect-ratio: 16 / 7;
+  position: relative; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 0 50px rgba(124,111,224,0.35), 0 0 0 2px rgba(160,140,255,0.25);
+  margin-bottom: 8px;
+}
+canvas { display: block; width: 100%; height: 100%; background: #0d062a; }
+
+#gamelbl {
+  position: absolute; top: 10px; left: 14px;
+  font-family: 'Fredoka One', cursive; font-size: 14px; color: rgba(255,255,255,0.7); pointer-events: none;
+}
+#attlbl {
+  position: absolute; top: 10px; right: 14px;
+  font-family: 'Fredoka One', cursive; font-size: 14px; color: rgba(255,255,255,0.4); pointer-events: none;
+}
+
+/* OVERLAY */
+#overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  background: rgba(8,5,22,0.88);
+}
+#overlay.hidden { display: none; }
+#ov-icon  { font-size: 50px; }
+#ov-title { font-family: 'Fredoka One', cursive; font-size: 32px; color: #fff; text-align: center; }
+#ov-sub   { font-size: 13px; color: rgba(255,255,255,0.6); text-align: center; max-width: 340px; line-height: 1.65; }
+#ov-score { font-family: 'Fredoka One', cursive; font-size: 22px; color: #FFD700; display: none; }
+#ov-best  { font-size: 12px; color: rgba(255,255,255,0.35); display: none; margin-top: -4px; }
+#ov-btn {
+  font-family: 'Fredoka One', cursive; font-size: 24px;
+  background: #7C6FE0; color: #fff; border: none;
+  border-radius: 99px; padding: 14px 56px; cursor: pointer;
+  box-shadow: 0 5px 0 #3d3494, 0 0 24px rgba(124,111,224,0.5);
+  transition: transform 0.1s, box-shadow 0.1s; margin-top: 4px;
+}
+#ov-btn:hover  { transform: translateY(-2px); box-shadow: 0 7px 0 #3d3494; }
+#ov-btn:active { transform: translateY(3px);  box-shadow: 0 2px 0 #3d3494; }
+.ov-hint { font-size: 12px; color: rgba(255,255,255,0.25); }
+
+/* QUESTION POPUP */
+#qpopup {
+  position: absolute; inset: 0;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(8,5,22,0.82); z-index: 20;
+}
+#qpopup.show { display: flex; }
+.qcard {
+  background: rgba(18,12,48,0.98); border: 1.5px solid rgba(160,140,255,0.4);
+  border-radius: 18px; padding: 22px 26px;
+  max-width: 440px; width: 92%; text-align: center;
+  box-shadow: 0 0 40px rgba(124,111,224,0.3);
+  animation: popIn 0.25s cubic-bezier(.3,1.4,.5,1);
+}
+@keyframes popIn { from{transform:scale(0.82);opacity:0} to{transform:scale(1);opacity:1} }
+.qcard-top { font-family:'Fredoka One',cursive; font-size:12px; color:rgba(255,255,255,0.3); margin-bottom:6px; letter-spacing:1px; }
+.qdiff-tag { display:inline-block; font-size:11px; font-weight:900; border-radius:99px; padding:2px 11px; margin-bottom:10px; letter-spacing:0.5px; }
+.qdiff-tag.Easy   { background:rgba(76,175,125,0.2);  color:#6EFFA8; border:1px solid rgba(76,175,125,0.35); }
+.qdiff-tag.Medium { background:rgba(255,193,7,0.15);  color:#FFD54F; border:1px solid rgba(255,193,7,0.35); }
+.qdiff-tag.Hard   { background:rgba(229,83,83,0.15);  color:#FF8A80; border:1px solid rgba(229,83,83,0.35); }
+#pqtext { font-size:17px; font-weight:800; color:#fff; margin-bottom:14px; line-height:1.45; }
+#pqans  { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:4px; }
+.abtn {
+  font-family:'Nunito',sans-serif; font-size:14px; font-weight:800;
+  border:1.5px solid rgba(160,140,255,0.35); background:rgba(124,111,224,0.14); color:#C8C0FF;
+  border-radius:10px; padding:9px 18px; cursor:pointer;
+  transition:transform 0.1s,background 0.15s,box-shadow 0.15s;
+  box-shadow:0 3px 0 rgba(50,35,120,0.7);
+}
+.abtn:hover:not(:disabled) { background:rgba(124,111,224,0.28); transform:translateY(-2px); box-shadow:0 5px 0 rgba(50,35,120,0.7); }
+.abtn.correct { background:rgba(76,175,125,0.22); border-color:#4CAF7D; color:#6EFFA8; box-shadow:0 3px 0 rgba(20,80,50,0.7); }
+.abtn.wrong   { background:rgba(229,83,83,0.18);  border-color:#E55353; color:#FF8A80; box-shadow:0 3px 0 rgba(100,20,20,0.7); }
+.abtn:disabled { cursor:default; }
+#pqhint { font-size:11px; color:rgba(255,255,255,0.28); margin-top:8px; }
+#pqfb   { font-size:14px; font-weight:800; margin-top:8px; min-height:20px; }
+#pqfb.ok  { color:#6EFFA8; }
+#pqfb.err { color:#FF8A80; }
+.streak-msg { font-size:12px; color:#FFD700; font-weight:800; margin-top:4px; min-height:18px; }
+.regain-msg { font-size:12px; color:#80D8FF; font-weight:800; margin-top:3px;  min-height:18px; }
+
+#hitflash { position:absolute; inset:0; background:rgba(255,60,60,0); pointer-events:none; transition:background 0.1s; z-index:5; border-radius:14px; }
+.burst { position:fixed; pointer-events:none; font-size:22px; animation:fu 0.9s ease-out forwards; z-index:9999; }
+@keyframes fu { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-80px) scale(1.4)} }
+.ctrl-hint { font-size:11px; color:rgba(255,255,255,0.2); text-align:center; margin-top:4px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="gametitle">Number<span>Dash</span> ⚡</div>
+  <div class="hud">
+    <button id="musicbtn">🎵 Music: ON</button>
+    <div class="hudpill"><span class="lbl">Score</span><span id="sv">0</span></div>
+    <div class="hudpill"><span class="lbl">Best</span><span id="bv">0</span></div>
+  </div>
+</div>
+
+<div class="lives-row">
+  <div class="life-bar jump">
+    <div class="life-bar-label">❤️ Jump lives — lost hitting spikes</div>
+    <div class="life-icons">
+      <span class="life-icon" id="jh1">❤️</span>
+      <span class="life-icon" id="jh2">❤️</span>
+      <span class="life-icon" id="jh3">❤️</span>
+    </div>
+  </div>
+  <div class="life-bar quest">
+    <div class="life-bar-label">⭐ Question lives — lost answering wrong</div>
+    <div class="life-icons">
+      <span class="life-icon" id="qh1">⭐</span>
+      <span class="life-icon" id="qh2">⭐</span>
+      <span class="life-icon" id="qh3">⭐</span>
+    </div>
+  </div>
+</div>
+
+<div class="progrow">
+  <span class="proglbl" id="plbl">Warm-up</span>
+  <div class="progtrack"><div class="progfill" id="pf" style="width:0%"></div></div>
+  <span class="proglbl" id="ppct">0%</span>
+</div>
+
+<div class="gamewrap" id="gamewrap">
+  <canvas id="gc"></canvas>
+  <div id="hitflash"></div>
+  <div id="gamelbl">Score: <span id="gsv">0</span></div>
+  <div id="attlbl">Attempt <span id="att">1</span></div>
+
+  <div id="qpopup">
+    <div class="qcard">
+      <div class="qcard-top">✋ QUESTION TIME — GAME PAUSED</div>
+      <span class="qdiff-tag Easy" id="qdifftag">Easy</span>
+      <div id="pqtext"></div>
+      <div id="pqans"></div>
+      <div id="pqhint"></div>
+      <div id="pqfb"></div>
+      <div class="streak-msg" id="streakmsg"></div>
+      <div class="regain-msg" id="regainmsg"></div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div id="ov-icon">⚡</div>
+    <div id="ov-title">Number Dash!</div>
+    <div id="ov-sub">
+      Jump over spikes and answer number questions!<br><br>
+      ❤️ <b>Jump lives</b> — lost when you hit a spike<br>
+      ⭐ <b>Question lives</b> — lost for wrong answers<br>
+      Answer correctly to <b>earn back a jump life!</b>
+    </div>
+    <div id="ov-score"></div>
+    <div id="ov-best"></div>
+    <button id="ov-btn">▶ Play!</button>
+    <div class="ov-hint">Space / tap / click to jump &nbsp;·&nbsp; Double jump allowed!</div>
+  </div>
+</div>
+
+<div class="ctrl-hint">Space or tap the game to jump &nbsp;·&nbsp; Two jumps in the air allowed</div>
+
+<script>
+// ── CANVAS ───────────────────────────────────────────────────────
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
+
+function syncCanvas() {
+  const w = canvas.parentElement;
+  canvas.width  = w.clientWidth;
+  canvas.height = w.clientHeight;
+}
+syncCanvas();
+window.addEventListener('resize', syncCanvas);
+
+// Dynamic dimensions based on canvas size
+function GW()     { return canvas.width; }
+function GH()     { return canvas.height; }
+function GROUND() { return Math.floor(GH() * 0.76); }
+function CUBE_S() { return Math.max(18, Math.floor(GH() * 0.17)); }
+function SPK_W()  { return Math.max(20, Math.floor(GH() * 0.18)); }
+function SPK_H()  { return Math.max(22, Math.floor(GH() * 0.23)); }
+
+// ── AUDIO ────────────────────────────────────────────────────────
+let audioCtx=null, musicOn=true, musicInterval=null, melIdx=0, beatTime=0;
+function getAC(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playNote(f,t,d,v,delay){
+  try{const ac=getAC(),o=ac.createOscillator(),g=ac.createGain();
+  o.connect(g);g.connect(ac.destination);o.type=t;o.frequency.value=f;
+  const ts=ac.currentTime+(delay||0);g.gain.setValueAtTime(v,ts);
+  g.gain.exponentialRampToValueAtTime(0.0001,ts+d);o.start(ts);o.stop(ts+d+0.05);}catch(e){}
+}
+function sfxJump()   {playNote(440,'square',0.1,0.07);playNote(660,'square',0.08,0.05,0.06);}
+function sfxLand()   {playNote(140,'sine',0.06,0.06);}
+function sfxDie()    {[280,220,180,140].forEach((f,i)=>playNote(f,'sawtooth',0.13,0.1,i*0.07));}
+function sfxCorrect(){[523,659,784,1047].forEach((f,i)=>playNote(f,'sine',0.18,0.09,i*0.08));}
+function sfxWrong()  {playNote(200,'sawtooth',0.28,0.1);playNote(160,'sawtooth',0.28,0.09,0.15);}
+function sfxRegain() {[392,523,659].forEach((f,i)=>playNote(f,'triangle',0.15,0.08,i*0.1));}
+
+const MEL=[
+  [659,1],[659,1],[0,1],[659,1],[0,1],[523,1],[659,1],[0,1],[784,2],[0,2],[392,2],[0,2],
+  [523,1],[0,1],[392,1],[0,1],[330,1],[0,1],[440,1],[0,1],[494,1],[0,1],[466,1],[440,1],[0,1],
+  [392,1],[659,1],[784,1],[880,1],[698,1],[784,1],[0,1],[659,1],[0,1],[523,1],[587,1],[494,1],[0,2],
+];
+const BASS=[[131,2],[0,2],[131,2],[0,2],[98,2],[0,2],[98,2],[0,2],[110,2],[0,2],[131,2],[0,2],[98,2],[0,2],[98,2],[0,2]];
+const BPM=162,BEAT=60/BPM;
+
+function scheduleBeat(){
+  if(!musicOn)return;
+  try{
+    const ac=getAC(),now=ac.currentTime;if(now<beatTime-0.1)return;
+    const[mf,md]=MEL[melIdx%MEL.length];
+    if(mf>0){const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);
+      o.type='square';o.frequency.value=mf;g.gain.setValueAtTime(0.038,beatTime);
+      g.gain.exponentialRampToValueAtTime(0.001,beatTime+BEAT*md*0.88);o.start(beatTime);o.stop(beatTime+BEAT*md);}
+    if(melIdx%2===0){const[bf,bd]=BASS[(melIdx/2)%BASS.length];
+      if(bf>0){const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);
+        o.type='triangle';o.frequency.value=bf;g.gain.setValueAtTime(0.045,beatTime);
+        g.gain.exponentialRampToValueAtTime(0.001,beatTime+BEAT*bd*0.78);o.start(beatTime);o.stop(beatTime+BEAT*bd);}}
+    const buf=ac.createBuffer(1,Math.floor(ac.sampleRate*0.04),ac.sampleRate);
+    const dd=buf.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=(Math.random()*2-1)*(1-i/dd.length);
+    const s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;s.connect(g);g.connect(ac.destination);
+    g.gain.setValueAtTime(0.022,beatTime);s.start(beatTime);
+    beatTime+=BEAT*md;melIdx++;
+  }catch(e){}
+}
+function startMusic(){if(!musicOn)return;try{const ac=getAC();beatTime=ac.currentTime+0.1;melIdx=0;}catch(e){}
+  if(musicInterval)clearInterval(musicInterval);musicInterval=setInterval(scheduleBeat,80);}
+function stopMusic(){if(musicInterval){clearInterval(musicInterval);musicInterval=null;}}
+
+document.getElementById('musicbtn').onclick=()=>{
+  musicOn=!musicOn;
+  document.getElementById('musicbtn').textContent=musicOn?'🎵 Music: ON':'🔇 Music: OFF';
+  if(musicOn&&gameRunning)startMusic();else stopMusic();
+};
+
+// ── STATE ────────────────────────────────────────────────────────
+let score=0,best=0,attempt=0,gameRunning=false,gamePaused=false,frameId;
+let bgScroll=0,groundScroll=0,gameSpeed=4.6;
+let spikeTimer=0,spikeInterval=95;
+let spikes=[],particles=[],trail=[];
+let correctStreak=0,qTriggerScore=80,questionPending=false,popAnswered=false;
+let jumpLives=3,questLives=3;
+let cube={x:0,y:0,vy:0,onGround:true,jumps:0,angle:0};
+
+const bgBlocks=Array.from({length:10},(_,i)=>({
+  x:i*120,y:18+(i%3)*26,w:78+(i%3)*20,h:11+(i%2)*8,
+  col:`rgba(${80+i*8},${55+i*7},${155+i*5},0.18)`
+}));
+
+// ── QUESTIONS ────────────────────────────────────────────────────
+const ALL_Q=[
+  {q:"What number is this: 1,000?",               a:["One thousand","One hundred","Ten thousand"],   c:0,d:"Easy",  h:"Count the zeros after 1."},
+  {q:"Which number is larger: 52,000 or 25,000?", a:["52,000","25,000","They are equal"],            c:0,d:"Easy",  h:"Look at the first digit."},
+  {q:"Round 230 to the nearest 100.",              a:["200","300","250"],                             c:0,d:"Easy",  h:"Is 230 closer to 200 or 300?"},
+  {q:"Place value of 5 in 500?",                   a:["Hundreds","Tens","Ones"],                     c:0,d:"Easy",  h:"How many zeros follow the 5?"},
+  {q:"What comes next? 100, 200, 300, ___",        a:["400","350","500"],                            c:0,d:"Easy",  h:"Add 100 each time."},
+  {q:"Write 'two thousand and five' in numerals.", a:["2,005","2,500","205"],                         c:0,d:"Easy",  h:"2,000 + 5 = ?"},
+  {q:"Is 6,000 bigger than 600?",                  a:["Yes","No","They are equal"],                  c:0,d:"Easy",  h:"Count the zeros!"},
+  {q:"Round 4,472 to the nearest 1,000.",          a:["4,000","5,000","4,500"],                      c:0,d:"Easy",  h:"Is 472 closer to 0 or 1,000?"},
+  {q:"Value of 4 in 4,300,000?",                   a:["4 million","400 thousand","4 thousand"],      c:0,d:"Medium",h:"4 is in the millions place."},
+  {q:"Round 1,350,000 to the nearest million.",    a:["1,000,000","2,000,000","1,400,000"],          c:0,d:"Medium",h:"Is 350,000 closer to 0 or 1 million?"},
+  {q:"Which is larger: 2,700,000 or 2,070,000?",  a:["2,700,000","2,070,000","Both equal"],         c:0,d:"Medium",h:"Compare the hundred-thousands digit."},
+  {q:"100,000 more than 4,000,000?",               a:["4,100,000","4,010,000","5,000,000"],          c:0,d:"Medium",h:"Add 1 to the hundred-thousands place."},
+  {q:"5,400,000 ___ 5,040,000 — which sign?",     a:[">","<","="],                                  c:0,d:"Medium",h:"Compare the hundred-thousands digit."},
+  {q:"What comes next? 2M → 4M → 6M → ___",      a:["8,000,000","7,000,000","10,000,000"],         c:0,d:"Medium",h:"Add 2 million each time."},
+  {q:"Round 6,720,000 to the nearest million.",    a:["7,000,000","6,000,000","6,700,000"],          c:0,d:"Medium",h:"Is 720,000 closer to 0 or 1 million?"},
+  {q:"500,000 more than 9,200,000?",               a:["9,700,000","9,250,000","10,200,000"],         c:0,d:"Hard",  h:"Add 5 to the hundred-thousands place."},
+  {q:"Round 9,650,000 to the nearest million.",    a:["10,000,000","9,000,000","9,700,000"],         c:0,d:"Hard",  h:"Is 650,000 closer to 0 or 1 million?"},
+  {q:"Halfway between 6,000,000 and 8,000,000?",  a:["7,000,000","6,500,000","7,500,000"],          c:0,d:"Hard",  h:"Add them together, then divide by 2."},
+  {q:"True or false: 8,000,000 + 70,000 = 8,070,000",a:["True","False"],                           c:0,d:"Hard",  h:"Add 70,000 to 8,000,000."},
+  {q:"Largest: 9,090,000 | 9,900,000 | 9,009,000?",a:["9,900,000","9,090,000","9,009,000"],        c:0,d:"Hard",  h:"Look at the hundred-thousands digit."},
+];
+function shuf(a){return a.slice().sort(()=>Math.random()-0.5);}
+let qPool=[],qIdx=0;
+function buildPool(){return[...shuf(ALL_Q.filter(q=>q.d==='Easy')),...shuf(ALL_Q.filter(q=>q.d==='Medium')),...shuf(ALL_Q.filter(q=>q.d==='Hard'))];}
+function nextQ(){if(qIdx>=qPool.length){qPool=buildPool();qIdx=0;}return qPool[qIdx++];}
+
+// ── LIVES ────────────────────────────────────────────────────────
+function renderLives(){
+  for(let i=1;i<=3;i++) document.getElementById('jh'+i).classList.toggle('lost',i>jumpLives);
+  for(let i=1;i<=3;i++) document.getElementById('qh'+i).classList.toggle('lost',i>questLives);
+}
+function loseJumpLife(){ jumpLives=Math.max(0,jumpLives-1);renderLives();flashScreen();if(jumpLives<=0)die('jump'); }
+function loseQuestLife(){ questLives=Math.max(0,questLives-1);renderLives();if(questLives<=0)setTimeout(()=>die('quest'),2100); }
+function regainJumpLife(){ if(jumpLives<3){jumpLives++;renderLives();sfxRegain();return true;}return false; }
+function flashScreen(){ const f=document.getElementById('hitflash');f.style.background='rgba(255,50,50,0.35)';setTimeout(()=>f.style.background='rgba(255,60,60,0)',180); }
+
+// ── DRAW ─────────────────────────────────────────────────────────
+function drawBg(){
+  const g=ctx.createLinearGradient(0,0,0,GROUND());
+  g.addColorStop(0,'#0a0520');g.addColorStop(1,'#1a1050');
+  ctx.fillStyle=g;ctx.fillRect(0,0,GW(),GROUND());
+  bgBlocks.forEach(b=>{
+    b.x-=gameSpeed*0.18;if(b.x+b.w<0)b.x=GW()+20;
+    ctx.fillStyle=b.col;ctx.beginPath();ctx.roundRect(b.x,b.y,b.w,b.h,3);ctx.fill();
+  });
+  ctx.fillStyle='rgba(255,255,255,0.55)';
+  for(let i=0;i<32;i++){
+    const sx=((i*103+bgScroll*0.08)%GW());
+    const sy=(i*41+i*17)%(GROUND()-20)+4;
+    ctx.fillRect(sx,sy,(i%4===0)?1.8:1,(i%4===0)?1.8:1);
+  }
+}
+function drawGround(){
+  ctx.fillStyle='#1e1260';ctx.fillRect(0,GROUND(),GW(),GH()-GROUND());
+  const gl=ctx.createLinearGradient(0,0,GW(),0);
+  gl.addColorStop(0,'#7C6FE0');gl.addColorStop(0.5,'#a090ff');gl.addColorStop(1,'#7C6FE0');
+  ctx.fillStyle=gl;ctx.fillRect(0,GROUND(),GW(),3);
+  const tW=60;ctx.strokeStyle='rgba(160,140,255,0.18)';ctx.lineWidth=0.5;
+  for(let x=-(groundScroll%tW);x<GW();x+=tW){ctx.beginPath();ctx.moveTo(x,GROUND());ctx.lineTo(x,GH());ctx.stroke();}
+  ctx.beginPath();ctx.moveTo(0,GROUND()+20);ctx.lineTo(GW(),GROUND()+20);ctx.stroke();
+}
+function drawCube(){
+  const cs=CUBE_S(),cx=cube.x+cs/2,cy=cube.y+cs/2;
+  trail.push({x:cx,y:cy});if(trail.length>14)trail.shift();
+  trail.forEach((t,i)=>{
+    const a=(i/trail.length)*0.22,s=cs*(i/trail.length)*0.6;
+    ctx.globalAlpha=a;ctx.fillStyle='#9080ff';
+    ctx.beginPath();ctx.roundRect(t.x-s/2,t.y-s/2,s,s,3);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(cube.angle);
+  ctx.shadowColor='#7C6FE0';ctx.shadowBlur=14;
+  ctx.fillStyle='#7C6FE0';ctx.beginPath();ctx.roundRect(-cs/2,-cs/2,cs,cs,cs*0.18);ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#5A4FC8';ctx.beginPath();ctx.roundRect(-cs/3,-cs/3,cs*2/3,cs*2/3,cs*0.08);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.14)';ctx.beginPath();ctx.roundRect(-cs/2,-cs/2,cs,cs/3,cs*0.1);ctx.fill();
+  const er=cs*0.13;
+  ctx.fillStyle='#fff';ctx.globalAlpha=0.92;ctx.beginPath();ctx.arc(cs*0.18,-cs*0.18,er,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#2D2B55';ctx.globalAlpha=1;ctx.beginPath();ctx.arc(cs*0.22,-cs*0.14,er*0.55,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+function drawSpike(s){
+  if(!s.active)return;
+  const sw=SPK_W(),sh=SPK_H(),base=GROUND();
+  ctx.shadowColor='#FF4444';ctx.shadowBlur=10;
+  const gr=ctx.createLinearGradient(s.x,base,s.x+sw/2,base-sh);
+  gr.addColorStop(0,'#8B0000');gr.addColorStop(1,'#FF5252');
+  ctx.fillStyle=gr;
+  ctx.beginPath();ctx.moveTo(s.x,base);ctx.lineTo(s.x+sw/2,base-sh);ctx.lineTo(s.x+sw,base);
+  ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(255,200,200,0.45)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(s.x+2,base-2);ctx.lineTo(s.x+sw/2,base-sh+2);ctx.stroke();
+  ctx.shadowBlur=0;
+}
+function drawParticles(){
+  particles=particles.filter(p=>p.life>0);
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life;ctx.fillStyle=p.col;
+    ctx.beginPath();ctx.roundRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size,2);ctx.fill();
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.22;p.life-=0.042;
+  });ctx.globalAlpha=1;
+}
+function spawnDeathParticles(){
+  const cs=CUBE_S(),cols=['#FF5252','#FFD740','#7C6FE0','#FF80AB','#fff','#80D8FF'];
+  for(let i=0;i<22;i++)particles.push({
+    x:cube.x+cs/2,y:cube.y+cs/2,
+    vx:(Math.random()-0.5)*7,vy:(Math.random()-0.9)*7,
+    size:Math.random()*5+2,col:cols[Math.floor(Math.random()*cols.length)],life:1
+  });
+}
+
+// ── QUESTION ─────────────────────────────────────────────────────
+function showQuestion(q){
+  questionPending=true;gamePaused=true;popAnswered=false;stopMusic();
+  document.getElementById('pqtext').textContent=q.q;
+  document.getElementById('pqhint').textContent='💡 Hint: '+q.h;
+  document.getElementById('pqfb').textContent='';document.getElementById('pqfb').className='';
+  document.getElementById('streakmsg').textContent='';document.getElementById('regainmsg').textContent='';
+  const tag=document.getElementById('qdifftag');tag.textContent=q.d;tag.className='qdiff-tag '+q.d;
+  const wrap=document.getElementById('pqans');wrap.innerHTML='';
+  shuf(q.a.map((a,i)=>({a,i}))).forEach(({a,i})=>{
+    const btn=document.createElement('button');btn.className='abtn';btn.textContent=a;btn._ok=(i===q.c);
+    btn.onclick=()=>handleAnswer(btn._ok,btn,q);wrap.appendChild(btn);
+  });
+  document.getElementById('qpopup').classList.add('show');
+}
+function handleAnswer(ok,btn,q){
+  if(popAnswered)return;popAnswered=true;
+  document.querySelectorAll('#pqans .abtn').forEach(b=>{if(b._ok)b.classList.add('correct');b.disabled=true;});
+  if(ok){
+    btn.classList.add('correct');correctStreak++;
+    const pts=q.d==='Easy'?30:q.d==='Medium'?50:70;
+    const bonus=correctStreak>=3?15:0;
+    score+=pts+bonus;
+    document.getElementById('sv').textContent=Math.floor(score);
+    document.getElementById('gsv').textContent=Math.floor(score);
+    document.getElementById('pqfb').textContent='🎉 Correct! +' + (pts+bonus) + ' points!';
+    document.getElementById('pqfb').className='ok';
+    if(correctStreak>=3)document.getElementById('streakmsg').textContent='🔥 '+correctStreak+' in a row! Bonus +'+bonus+'!';
+    const regained=regainJumpLife();
+    if(regained)document.getElementById('regainmsg').textContent='💖 You earned back a jump life!';
+    sfxCorrect();celebrate();
+  }else{
+    btn.classList.add('wrong');correctStreak=0;
+    document.getElementById('pqfb').textContent='💪 Not quite — correct answer is in green. Keep going!';
+    document.getElementById('pqfb').className='err';
+    sfxWrong();loseQuestLife();
+  }
+  setTimeout(()=>{
+    document.getElementById('qpopup').classList.remove('show');
+    if(gameRunning){questionPending=false;gamePaused=false;qTriggerScore=Math.floor(score)+80;}
+    if(musicOn&&gameRunning)startMusic();
+    updateProgress();
+  },2100);
+}
+
+// ── COLLISION / DEATH ────────────────────────────────────────────
+function checkCollision(){
+  const cs=CUBE_S(),sw=SPK_W(),sh=SPK_H(),m=4;
+  spikes.forEach(s=>{
+    if(!s.active)return;
+    if(cube.x+cs-m>s.x+m&&cube.x+m<s.x+sw-m&&cube.y+cs-2>GROUND()-sh+6){s.active=false;loseJumpLife();}
+  });
+}
+function die(reason){
+  if(!gameRunning)return;
+  spawnDeathParticles();sfxDie();stopMusic();gameRunning=false;
+  if(score>best){best=Math.floor(score);document.getElementById('bv').textContent=best;}
+  setTimeout(()=>{
+    const good=score>=350;
+    document.getElementById('ov-icon').textContent=good?'🏆':'💥';
+    document.getElementById('ov-title').textContent=good?'Amazing job!':'Good try!';
+    const why=reason==='jump'?'You ran out of jump lives — keep practising those jumps!':'You ran out of question lives — keep practising the numbers!';
+    document.getElementById('ov-sub').innerHTML=good?'You are a number superstar! Keep dashing!':'<b>'+why+'</b><br><br>Every attempt makes you better!';
+    const sc=document.getElementById('ov-score');sc.textContent='⭐ Score: '+Math.floor(score);sc.style.display='block';
+    const bsc=document.getElementById('ov-best');bsc.textContent='Best ever: '+best;bsc.style.display='block';
+    document.getElementById('ov-btn').textContent='▶ Try Again!';
+    document.getElementById('overlay').classList.remove('hidden');
+  },700);
+}
+function celebrate(){
+  const em=['⭐','🌟','✨','🎉','💫','🎊'];
+  for(let i=0;i<7;i++)setTimeout(()=>{
+    const el=document.createElement('div');el.className='burst';
+    el.textContent=em[Math.floor(Math.random()*em.length)];
+    el.style.left=(Math.random()*70+10)+'vw';el.style.top=(Math.random()*35+8)+'vh';
+    document.body.appendChild(el);setTimeout(()=>el.remove(),920);
+  },i*75);
+}
+function updateProgress(){
+  const pct=Math.min(100,Math.floor((score/700)*100));
+  document.getElementById('pf').style.width=pct+'%';document.getElementById('ppct').textContent=pct+'%';
+  document.getElementById('plbl').textContent=score<150?'Warm-up':score<350?'Getting tricky!':score<550?'Number Expert!':'Maths Champion! 🏆';
+}
+
+// ── JUMP — easier: higher & floatier ────────────────────────────
+const JUMP_MULTIPLIER = 0.083;  // middle of 0.072 and 0.095
+const GRAV_MULTIPLIER = 0.0033; // middle of 0.0038 and 0.0028
+
+function jump(){
+  if(!gameRunning||gamePaused)return;
+  if(cube.jumps<2){
+    cube.vy = -(GH() * JUMP_MULTIPLIER);
+    cube.onGround=false;cube.jumps++;sfxJump();
+  }
+}
+
+// ── SPIKE PATTERNS ───────────────────────────────────────────────
+const PATS=[
+  [{d:0}],
+  [{d:0},{d:1.35}],
+  [{d:0},{d:1.35},{d:2.7}],
+  [{d:0},{d:1.85}],
+  [{d:0},{d:2.6}],
+];
+function spawnSpike(){
+  let pool=[PATS[0]];
+  if(score>150)pool=[PATS[0],PATS[1],PATS[3]];
+  if(score>320)pool=PATS;
+  const pat=pool[Math.floor(Math.random()*pool.length)];
+  const sw=SPK_W();
+  pat.forEach(p=>spikes.push({x:GW()+20+p.d*sw,active:true}));
+}
+
+// ── MAIN LOOP ────────────────────────────────────────────────────
+function loop(){
+  if(!gameRunning)return;
+  ctx.clearRect(0,0,GW(),GH());
+  drawBg();drawGround();
+
+  if(!gamePaused){
+    bgScroll+=gameSpeed;groundScroll+=gameSpeed;
+
+    // Physics — easier jumping
+    const grav = GH() * GRAV_MULTIPLIER;
+    cube.vy+=grav;cube.y+=cube.vy;
+    const floor=GROUND()-CUBE_S();
+    const wasAir=!cube.onGround;
+    if(cube.y>=floor){
+      cube.y=floor;if(wasAir&&cube.vy>2)sfxLand();
+      cube.vy=0;cube.onGround=true;cube.jumps=0;
+    }else{cube.onGround=false;}
+    if(!cube.onGround)cube.angle+=0.13;
+    else cube.angle=Math.round(cube.angle/(Math.PI/2))*(Math.PI/2);
+
+    spikeTimer++;
+    if(spikeTimer>=spikeInterval){
+      spikeTimer=0;spawnSpike();
+      spikeInterval=Math.max(58,95-Math.floor(score/80)*4)+Math.floor(Math.random()*25);
+    }
+    spikes.forEach(s=>{if(s.active)s.x-=gameSpeed;});
+    spikes=spikes.filter(s=>s.x>-100);
+
+    score+=0.07;
+    document.getElementById('sv').textContent=Math.floor(score);
+    document.getElementById('gsv').textContent=Math.floor(score);
+    gameSpeed=4.6+Math.min(score/350,2.2);
+
+    if(!questionPending&&Math.floor(score)>=qTriggerScore)showQuestion(nextQ());
+    checkCollision();updateProgress();
+  }
+
+  spikes.forEach(drawSpike);drawParticles();drawCube();
+  frameId=requestAnimationFrame(loop);
+}
+
+// ── START ────────────────────────────────────────────────────────
+function startGame(){
+  syncCanvas();
+  score=0;jumpLives=3;questLives=3;gameRunning=true;gamePaused=false;attempt++;
+  cube={x:GW()*0.12,y:GROUND()-CUBE_S(),vy:0,onGround:true,jumps:0,angle:0};
+  spikes=[];particles=[];trail=[];
+  spikeTimer=0;bgScroll=0;groundScroll=0;gameSpeed=4.6;spikeInterval=95;
+  questionPending=false;popAnswered=false;correctStreak=0;
+  qPool=buildPool();qIdx=0;qTriggerScore=80;
+  document.getElementById('att').textContent=attempt;
+  document.getElementById('sv').textContent=0;document.getElementById('gsv').textContent=0;
+  document.getElementById('pf').style.width='0%';document.getElementById('ppct').textContent='0%';
+  document.getElementById('plbl').textContent='Warm-up';
+  renderLives();
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('qpopup').classList.remove('show');
+  document.getElementById('ov-score').style.display='none';document.getElementById('ov-best').style.display='none';
+  if(frameId)cancelAnimationFrame(frameId);
+  if(musicOn)startMusic();
+  loop();
+}
+
+// ── INPUT ────────────────────────────────────────────────────────
+document.getElementById('ov-btn').onclick=startGame;
+canvas.addEventListener('click',jump);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();jump();},{passive:false});
+document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump();}});
+</script>
+</body>
+</html>
